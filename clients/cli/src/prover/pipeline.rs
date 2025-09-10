@@ -21,7 +21,7 @@ impl ProvingPipeline {
         task: &Task,
         environment: &Environment,
         client_id: &str,
-    ) -> Result<(Proof, String, Vec<String>), ProverError> {
+    ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
         match task.program_id.as_str() {
             "fib_input_initial" => Self::prove_fib_task(task, environment, client_id).await,
             _ => Err(ProverError::MalformedTask(format!(
@@ -36,7 +36,7 @@ impl ProvingPipeline {
         task: &Task,
         environment: &Environment,
         client_id: &str,
-    ) -> Result<(Proof, String, Vec<String>), ProverError> {
+    ) -> Result<(Vec<Proof>, String, Vec<String>), ProverError> {
         let all_inputs = task.all_inputs();
 
         if all_inputs.is_empty() {
@@ -46,25 +46,26 @@ impl ProvingPipeline {
         }
 
         let mut proof_hashes = Vec::new();
-        let mut final_proof = None;
+        let mut all_proofs: Vec<Proof> = Vec::new();
 
         let mut proofs: Vec<Proof> =
             Self::prove_fib_task_parallel(all_inputs, task, environment, client_id).await?;
-        for (_input_index, _input_data) in all_inputs.iter().enumerate() {
-            // Step 3: Generate proof hash
+        for (input_index, input_data) in all_inputs.iter().enumerate() {
+            // Step 1: Parse and validate input
+            // let inputs = InputParser::parse_triple_input(input_data)?;
+
+            // Step 2: Generate and verify proof
             let proof: Proof = proofs.remove(0);
+
+            // Step 3: Generate proof hash
             let proof_hash = Self::generate_proof_hash(&proof);
             proof_hashes.push(proof_hash);
-            final_proof = Some(proof);
+            all_proofs.push(proof);
         }
 
         let final_proof_hash = Self::combine_proof_hashes(task, &proof_hashes);
 
-        Ok((
-            final_proof.expect("No proof found"),
-            final_proof_hash,
-            proof_hashes,
-        ))
+        Ok((all_proofs, final_proof_hash, proof_hashes))
     }
 
     /// Generate hash for a proof

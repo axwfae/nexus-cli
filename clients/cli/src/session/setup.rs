@@ -1,5 +1,6 @@
 //! Session setup and initialization
 
+use crate::analytics::set_wallet_address_for_reporting;
 use crate::config::Config;
 use crate::environment::Environment;
 use crate::events::Event;
@@ -69,6 +70,7 @@ pub fn warn_memory_configuration(max_threads: Option<u32>) {
 /// * `config` - Resolved configuration with node_id and client_id
 /// * `env` - Environment to connect to
 /// * `max_threads` - Optional maximum number of threads for proving
+/// * `max_difficulty` - Optional override for task difficulty
 ///
 /// # Returns
 /// * `Ok(SessionData)` - Successfully set up session
@@ -79,6 +81,7 @@ pub async fn setup_session(
     check_mem: bool,
     max_threads: Option<u32>,
     max_tasks: Option<u32>,
+    max_difficulty: Option<crate::nexus_orchestrator::TaskDifficulty>,
 ) -> Result<SessionData, Box<dyn Error>> {
     let node_id = config.node_id.parse::<u64>()?;
     let client_id = config.user_id;
@@ -101,6 +104,9 @@ pub async fn setup_session(
     // Create shutdown channel - only one shutdown signal needed
     let (shutdown_sender, _) = broadcast::channel(1);
 
+    // Set wallet for reporting
+    set_wallet_address_for_reporting(config.wallet_address.clone());
+
     // Start authenticated worker (only mode we support now)
     let (event_receiver, join_handles, max_tasks_shutdown_sender) = start_authenticated_worker(
         node_id,
@@ -110,6 +116,7 @@ pub async fn setup_session(
         env,
         client_id,
         max_tasks,
+        max_difficulty,
     )
     .await;
 

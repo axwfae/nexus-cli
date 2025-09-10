@@ -19,6 +19,7 @@ pub struct ProofSubmission {
     pub proof_bytes: Vec<u8>,
     pub task_type: crate::nexus_orchestrator::TaskType,
     pub individual_proof_hashes: Vec<String>,
+    pub proofs_bytes: Vec<Vec<u8>>, // new: full proofs array
 }
 
 impl ProofSubmission {
@@ -34,11 +35,17 @@ impl ProofSubmission {
             proof_bytes,
             task_type,
             individual_proof_hashes: Vec::new(),
+            proofs_bytes: Vec::new(),
         }
     }
 
     pub fn with_individual_hashes(mut self, hashes: Vec<String>) -> Self {
         self.individual_proof_hashes = hashes;
+        self
+    }
+
+    pub fn with_proofs(mut self, proofs: Vec<Vec<u8>>) -> Self {
+        self.proofs_bytes = proofs;
         self
     }
 }
@@ -65,12 +72,17 @@ impl NetworkClient {
         orchestrator: &dyn Orchestrator,
         node_id: &str,
         verifying_key: VerifyingKey,
+        max_difficulty: crate::nexus_orchestrator::TaskDifficulty,
     ) -> Result<Task, OrchestratorError> {
         let mut attempts = 0;
 
         loop {
             // Make the request
-            match orchestrator.get_proof_task(node_id, verifying_key).await {
+            // Default to Large; callers can adapt or override upstream
+            match orchestrator
+                .get_proof_task(node_id, verifying_key, max_difficulty)
+                .await
+            {
                 Ok(task) => {
                     self.request_timer.record_success();
                     return Ok(task);
@@ -117,6 +129,7 @@ impl NetworkClient {
                     &submission.task_id,
                     &submission.proof_hash,
                     submission.proof_bytes.clone(),
+                    submission.proofs_bytes.clone(),
                     signing_key.clone(),
                     num_provers,
                     submission.task_type,
