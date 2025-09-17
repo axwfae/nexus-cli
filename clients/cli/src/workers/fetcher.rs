@@ -118,9 +118,8 @@ impl TaskFetcher {
                 if promote {
                     match current {
                         crate::nexus_orchestrator::TaskDifficulty::Small => {
-                            // If server overrides to Small, promote to SmallMedium
-                            // This handles server-side reputation gating
-                            crate::nexus_orchestrator::TaskDifficulty::SmallMedium
+                            // Small should not promote automatically - only via manual override
+                            crate::nexus_orchestrator::TaskDifficulty::Small
                         }
                         crate::nexus_orchestrator::TaskDifficulty::SmallMedium => {
                             crate::nexus_orchestrator::TaskDifficulty::Medium
@@ -148,9 +147,6 @@ impl TaskFetcher {
             }
         };
 
-        // Log the difficulty we're requesting vs what we receive
-        let requested_difficulty = desired;
-
         match self
             .network_client
             .fetch_task(
@@ -162,21 +158,6 @@ impl TaskFetcher {
             .await
         {
             Ok(proof_task_result) => {
-                // Log difficulty adjustment if server overrides our request
-                if proof_task_result.actual_difficulty != requested_difficulty {
-                    self.event_sender
-                        .send_task_event(
-                            format!(
-                                "Server adjusted difficulty: requested {:?}, assigned {:?} (reputation gating)",
-                                requested_difficulty,
-                                proof_task_result.actual_difficulty
-                            ),
-                            EventType::Success,
-                            LogLevel::Info,
-                        )
-                        .await;
-                }
-
                 // Log successful fetch
                 self.event_sender
                     .send_task_event(
