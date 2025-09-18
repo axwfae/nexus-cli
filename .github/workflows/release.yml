@@ -104,6 +104,7 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ github.run_number }}
           files: |
             artifacts/nexus-network-linux-x86_64
             artifacts/nexus-network-linux-x86_64.sha256
